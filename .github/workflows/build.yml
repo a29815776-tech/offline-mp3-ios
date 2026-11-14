@@ -1,0 +1,32 @@
+name: Build unsigned iPhone test app
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build iPhone app
+        run: |
+          xcodebuild -project OfflineMP3.xcodeproj -scheme OfflineMP3 -configuration Release -sdk iphoneos -derivedData out CODE_SIGNING_ALLOWED=NO build
+      - name: Package unsigned IPA
+        run: |
+          mkdir Payload
+          cp -R out/Build/Products/Release-iphoneos/OfflineMP3.app Payload/
+          /usr/bin/zip -qr OfflineMP3-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OfflineMP3-unsigned
+          path: OfflineMP3-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 3
+
