@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 @main
 struct PlayerApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var player = LocalPlayer()
     @State private var choosing = false
 
@@ -37,6 +38,9 @@ struct PlayerApp: App {
                     }
                 }
                 .navigationTitle("離線 MP3")
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { player.resumeWhenReturning() }
+                }
                 .fileImporter(isPresented: $choosing, allowedContentTypes: [.mp3], allowsMultipleSelection: true) { result in
                     switch result {
                     case .success(let urls): player.importTracks(urls)
@@ -124,6 +128,7 @@ final class LocalPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
                 error = "無法開始播放。"
                 return
             }
+            resumeAfterInterruption = false
             error = nil
             publishState()
         } catch { self.error = error.localizedDescription }
@@ -160,15 +165,21 @@ final class LocalPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         if type == .began {
-            resumeAfterInterruption = playing
+            resumeAfterInterruption = resumeAfterInterruption || playing
             audio?.pause()
             publishState()
         } else {
             let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-            let resume = resumeAfterInterruption && AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume)
-            resumeAfterInterruption = false
-            if resume { play() }
+            if resumeAfterInterruption && AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume) {
+                play()
+            }
         }
+    }
+
+    func resumeWhenReturning() {
+        guard resumeAfterInterruption, !session.isOtherAudioPlaying,
+              !session.secondaryAudioShouldBeSilencedHint else { return }
+        play()
     }
 
     private func registerCommands() {
