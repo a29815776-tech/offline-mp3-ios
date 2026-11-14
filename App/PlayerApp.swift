@@ -29,12 +29,20 @@ struct PlayerApp: App {
                         .buttonStyle(.borderless)
                         .disabled(player.current == nil)
                         Toggle("隨機播放", isOn: $player.shuffle)
+                        Toggle("與其他 App 同時播放", isOn: Binding(
+                            get: { player.mixWithOtherApps },
+                            set: { player.setMixing($0) }
+                        ))
                         if let error = player.error { Text(error).foregroundStyle(.red) }
                     }
-                    Section("本機歌曲") {
+                    Section {
                         ForEach(player.tracks, id: \.self) { track in
                             Button(track.deletingPathExtension().lastPathComponent) { player.select(track) }
                         }
+                    } header: {
+                        Text("本機歌曲")
+                    } footer: {
+                        Text("建置 \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—")")
                     }
                 }
                 .navigationTitle("離線 MP3")
@@ -60,6 +68,7 @@ final class LocalPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var position: TimeInterval = 0
     @Published var shuffle = false
+    @Published private(set) var mixWithOtherApps = UserDefaults.standard.bool(forKey: "mixWithOtherApps")
     @Published var error: String?
 
     private let directory = URL.documentsDirectory.appendingPathComponent("Music", isDirectory: true)
@@ -119,10 +128,21 @@ final class LocalPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     func toggle() { if playing { pause() } else { play() } }
 
+    func setMixing(_ enabled: Bool) {
+        do {
+            if playing {
+                try session.setCategory(.playback, mode: .default, options: enabled ? [.mixWithOthers] : [])
+            }
+            mixWithOtherApps = enabled
+            UserDefaults.standard.set(enabled, forKey: "mixWithOtherApps")
+            error = nil
+        } catch { self.error = error.localizedDescription }
+    }
+
     private func play() {
         guard let audio else { return }
         do {
-            try session.setCategory(.playback, mode: .default)
+            try session.setCategory(.playback, mode: .default, options: mixWithOtherApps ? [.mixWithOthers] : [])
             try session.setActive(true)
             guard audio.play() else {
                 error = "無法開始播放。"
