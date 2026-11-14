@@ -15,9 +15,9 @@ targets:
     info:
       path: Build/Info.plist
       properties:
-        CFBundleDisplayName: 離線 MP3
+        CFBundleDisplayName: OfflineMP3
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
+        CFBundleVersion: "2"
         UILaunchScreen: {}
         UIBackgroundModes:
           - audio
