@@ -17,7 +17,7 @@ jobs:
           xcodegen generate
       - name: Build iPhone app
         run: |
-          xcodebuild -project OfflineMP3.xcodeproj -scheme OfflineMP3 -configuration Release -sdk iphoneos -derivedData out CODE_SIGNING_ALLOWED=NO build
+          xcodebuild -project OfflineMP3.xcodeproj -scheme OfflineMP3 -configuration Release -sdk iphoneos -derivedDataPath out CODE_SIGNING_ALLOWED=NO build
       - name: Package unsigned IPA
         run: |
           mkdir Payload
